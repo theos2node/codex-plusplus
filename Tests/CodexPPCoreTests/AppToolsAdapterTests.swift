@@ -16,6 +16,12 @@ final class AppToolsAdapterTests: XCTestCase {
         XCTAssertEqual(result, "return globalThis.__codexPPWrapAppToolsConfig(" + previousContract.dropFirst("return".count) + ")")
     }
 
+    func testWrapsRspackPlatformComparison() throws {
+        let rspack = contract.replacingOccurrences(of: "process.platform===`win32`", with: "\"win32\"===process.platform")
+        let result = try AppToolsAdapter.patch(rspack)
+        XCTAssertEqual(result, "return globalThis.__codexPPWrapAppToolsConfig(" + rspack.dropFirst("return".count) + ")")
+    }
+
     func testRejectsMissingOrAmbiguousContract() {
         XCTAssertThrowsError(try AppToolsAdapter.patch("missing"))
         XCTAssertThrowsError(try AppToolsAdapter.patch(contract + contract))

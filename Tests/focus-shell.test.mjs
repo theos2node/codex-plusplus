@@ -286,3 +286,22 @@ test('Reviewed archive shell contract is discoverable', {skip:!process.env.CODEX
   const patched = parser.CodexPPShellAdapter.adapt(candidates[0], resource('shell-runtime'));
   assert.equal(patched.split('registerSidebarToggle(').length, 3); // runtime method and discovered command
 });
+
+test('Shell selects and releases the native command for the visible frame', () => {
+  const frame = {getClientRects: () => [1], isConnected: true, getAttribute: () => 'false'};
+  const element = {...frame};
+  const ctx = vm.createContext({
+    document: {querySelectorAll: selector => [selector.includes('"frame"') ? frame : element]},
+    getComputedStyle: () => ({visibility: 'visible', getPropertyValue: () => '32px'})
+  });
+  vm.runInContext(resource('shell-runtime'), ctx);
+  const shell = ctx.__codexPPShell;
+  const calls = [];
+  const releaseOld = shell.attachSidebarToggle(frame, () => calls.push('old'));
+  const releaseCurrent = shell.attachSidebarToggle(frame, () => calls.push('current'));
+  releaseOld();
+  shell.setSidebarOpen(true);
+  assert.deepEqual(calls, ['current']);
+  releaseCurrent();
+  assert.equal(shell.snapshot(), null);
+});

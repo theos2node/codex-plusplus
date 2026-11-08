@@ -32,3 +32,14 @@ test('Parser runner rejects unknown operations',()=>{
   assert.notEqual(result.status,0);
   assert.match(result.stderr,/Unknown parser adapter/);
 });
+
+test('Parser runner follows a locally built Rspack context menu', () => {
+  const assigned = source.replace('Menu.buildFromTemplate([]).popup({window:w});',
+    'let menu=Menu.buildFromTemplate([]);ready&&menu.once("menu-will-show",cb),menu.popup({window:w});');
+  const result = run('browser', {source: assigned});
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.output, /menu\.popup\(\{window:w,frame:globalThis\.__codexPPNativeBrowser/);
+
+  const shadowed = assigned.replace('menu.popup({window:w});', 'run((menu)=>menu.popup({window:w}));');
+  assert.notEqual(run('browser', {source: shadowed}).status, 0);
+});

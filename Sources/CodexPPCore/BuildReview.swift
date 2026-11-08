@@ -109,7 +109,9 @@ public enum BuildReview {
                 }
                 entry["files"] = pipeline.settingsPaths
             case "shell":
-                if let path = pipeline.shellPath { edits.append(["name": "shellFrame", "status": "applied", "target": path]) }
+                for (index, path) in pipeline.shellPaths.enumerated() {
+                    edits.append(["name": index == 0 ? "shellFrame" : "shellSurface", "status": "applied", "target": path])
+                }
             case "bookmarks":
                 for path in pipeline.bookmarkPaths { edits.append(["name": family(path), "status": "applied", "target": path]) }
             case "sidebar":

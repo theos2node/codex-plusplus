@@ -1,6 +1,7 @@
 // Owned renderer contract. Build-dependent discovery belongs in shell-adapter.
 (() => {
   let toggleSidebar = null;
+  const frameCommands = new WeakMap();
   function snapshot() {
     const nodes = {};
     for (const role of ['frame', 'panel', 'main', 'titlebar']) {
@@ -15,7 +16,7 @@
     // Use the app's layout token, not a fixed rail width or the expanded panel.
     const rail = getComputedStyle(nodes.frame).getPropertyValue('--app-shell-navigation-rail-width').trim();
     if (!/^(?:\d+(?:\.\d+)?)px$/.test(rail) || Number.parseFloat(rail) < 16 || Number.parseFloat(rail) > 256 ||
-        !['true', 'false'].includes(state) || typeof toggleSidebar !== 'function') return null;
+        !['true', 'false'].includes(state) || typeof (frameCommands.get(nodes.frame) ?? toggleSidebar) !== 'function') return null;
     return Object.freeze({...nodes, sidebarOpen: state === 'true',
       peeking: nodes.panel.getAttribute('data-codexpp-shell-peeking') === 'true', railWidth: rail});
   }
@@ -54,10 +55,15 @@
       toggleSidebar = command;
       return command;
     },
+    attachSidebarToggle(frame, command) {
+      if (!frame || typeof command !== 'function') return;
+      frameCommands.set(frame, command);
+      return () => { if (frameCommands.get(frame) === command) frameCommands.delete(frame); };
+    },
     setSidebarOpen(open) {
       const current = snapshot();
       if (!current || typeof open !== 'boolean') throw Error('Shell sidebar unavailable.');
-      if (current.sidebarOpen !== open) toggleSidebar();
+      if (current.sidebarOpen !== open) (frameCommands.get(current.frame) ?? toggleSidebar)();
     },
     onShortcut(callback) {
       if (typeof callback !== 'function') throw Error('Invalid shell shortcut callback.');

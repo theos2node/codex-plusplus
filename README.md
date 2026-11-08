@@ -2,6 +2,16 @@
 
 A fresh macOS base for Codex++, kept outside the ChatGPT desktop app. The helper owns patching, connection status, recovery controls, and links to the project. The signed main-process patch hosts renderer Extensions through Electron's in-process `webContents` API; it opens no DevTools or extension-control network listener.
 
+## ChatGPT build 25679
+
+This branch supports the arm64 ChatGPT 26.1103.41825 bundle using its Rspack chunk layout. The adapter requires the reviewed archive hash and a valid OpenAI signature. It covers the Extensions settings page, shell integration, bookmarks, and the native browser adapter. The Better Sidebar adapter and startup optimizations still target the older layout.
+
+Run the read-only compatibility check against the installed app before signing and staging:
+
+```sh
+python3 scripts/review-build.py /Applications/ChatGPT.app
+```
+
 ## Upgrading from Codex++ 1.x
 
 Codex++ 2.0 replaces the 1.x tweak system (still on the [`legacy-1.x`](https://github.com/b-nnett/codex-plusplus/tree/legacy-1.x) branch) with a signed menu-bar helper. 1.x tweaks do not load in 2.0. Before installing 2.0, quit ChatGPT and remove 1.x, which restores the app when it can:

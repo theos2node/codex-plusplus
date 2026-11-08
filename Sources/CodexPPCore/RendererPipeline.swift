@@ -19,7 +19,7 @@ struct RendererPipeline {
         var renderers: [(String, Data)] = []
         var settings: NativeSettingsAdapter.Discovery?
         var settingsPaths: [String] = []
-        var shellPath: String?
+        var shellPaths: [String] = []
         var bookmarkPaths: [String] = []
         var sidebar: SidebarAdapter.Result?
         var browserPath: String?
@@ -42,17 +42,29 @@ struct RendererPipeline {
             do { let value = try body(); record(nil); return value }
             catch { record(error); if required && !continuesAfterFailure { throw error }; return nil }
         }
-        let discovery = try step("settings", required: true) { try NativeSettingsAdapter.discover(archive: original, runtime: runtime) }
+        let rspack = original.headerHash == RspackAdapter.headerHash
+        if rspack { try RspackAdapter.authenticate(original) }
+        let discovery = try step("settings", required: true) {
+            try rspack ? RspackAdapter.settings(archive: original, runtime: runtime)
+                : NativeSettingsAdapter.discover(archive: original, runtime: runtime)
+        }
         output.settings = discovery?.report
         let settingsPatches = discovery?.patches ?? []
         output.settingsPaths = settingsPatches.map(\.0)
         var base = settingsPatches
-        if let shell = try step("shell", required: true, { try ShellAdapter.discover(archive: original, replacements: settingsPatches) }) {
-            output.shellPath = shell.0
-            base = settingsPatches.filter({ $0.0 != shell.0 }) + [shell]
+        if let shell = try step("shell", required: true, {
+            try rspack ? RspackAdapter.shell(archive: original)
+                : [ShellAdapter.discover(archive: original, replacements: settingsPatches)]
+        }) {
+            output.shellPaths = shell.map(\.0)
+            let paths = Set(output.shellPaths)
+            base = settingsPatches.filter { !paths.contains($0.0) } + shell
         }
         var renderers = base
-        if let bookmarks = try step("bookmarks", required: true, { try BookmarksAdapter.discover(archive: original, replacements: base) }) {
+        if let bookmarks = try step("bookmarks", required: true, {
+            try rspack ? RspackAdapter.bookmarks(archive: original)
+                : BookmarksAdapter.discover(archive: original, replacements: base)
+        }) {
             let paths = Set(bookmarks.map { $0.0 })
             output.bookmarkPaths = bookmarks.map(\.0)
             renderers = base.filter({ !paths.contains($0.0) }) + bookmarks
@@ -65,7 +77,9 @@ struct RendererPipeline {
         }
         // The startup fast path also edits the main bundle, so it builds
         // on the browser adapter's output rather than replacing it.
-        if let browser = try step("browser", required: true, { try NativeBrowserAdapter.patch(archive: original) }) {
+        if let browser = try step("browser", required: true, {
+            try NativeBrowserAdapter.patch(archive: original, reviewedPath: rspack ? RspackAdapter.browserPath : nil)
+        }) {
             output.browserPath = browser.0
             renderers = renderers.filter({ $0.0 != browser.0 }) + [browser]
         }

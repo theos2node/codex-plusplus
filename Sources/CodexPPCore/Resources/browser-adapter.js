@@ -2,12 +2,13 @@
 globalThis.CodexPPBrowserAdapter = Object.freeze({
   adapt(source) {
     const ast = acorn.parse(source, { ecmaVersion: 'latest', sourceType: 'script' });
-    function walk(node, visit) {
+    function walk(node, visit, nested = false) {
       if (!node || typeof node.type !== 'string') return;
-      visit(node);
+      visit(node, nested);
+      const childNested = nested || /Function/.test(node.type);
       for (const value of Object.values(node)) {
-        if (Array.isArray(value)) { for (const child of value) walk(child, visit); }
-        else if (value && typeof value.type === 'string') walk(value, visit);
+        if (Array.isArray(value)) { for (const child of value) walk(child, visit, childNested); }
+        else if (value && typeof value.type === 'string') walk(value, visit, childNested);
       }
     }
     const matches = [];
@@ -20,10 +21,22 @@ globalThis.CodexPPBrowserAdapter = Object.freeze({
       if (!['params', 'webContents', 'window', 'onComment', 'onInspect', 'isAnnotationModeEnabled'].every(key => properties.has(key))) return;
       const params = properties.get('params'), window = properties.get('window'), contents = properties.get('webContents');
       if (params.type !== 'Identifier' || window.type !== 'Identifier' || contents.type !== 'Identifier') return;
-      walk(node.body, call => {
+      const menus = new Map();
+      for (const statement of node.body.body ?? []) {
+        if (statement.type !== 'VariableDeclaration' || statement.kind === 'var') continue;
+        for (const declaration of statement.declarations) {
+          const value = declaration.init;
+          if (declaration.id.type === 'Identifier' && value?.type === 'CallExpression' &&
+              value.callee.type === 'MemberExpression' && !value.callee.computed &&
+              value.callee.property.name === 'buildFromTemplate') menus.set(declaration.id.name, declaration.end);
+        }
+      }
+      walk(node.body, (call, nested) => {
         if (call.type !== 'CallExpression' || call.callee.type !== 'MemberExpression' || call.callee.computed || call.callee.property.name !== 'popup') return;
         const build = call.callee.object;
-        if (build.type !== 'CallExpression' || build.callee.type !== 'MemberExpression' || build.callee.computed || build.callee.property.name !== 'buildFromTemplate') return;
+        const fromTemplate = build.type === 'CallExpression' && build.callee.type === 'MemberExpression' &&
+          !build.callee.computed && build.callee.property.name === 'buildFromTemplate';
+        if (!fromTemplate && (nested || build.type !== 'Identifier' || !(menus.get(build.name) < call.start))) return;
         const options = call.arguments[0];
         if (options?.type !== 'ObjectExpression' || !options.properties.every(p => p.type === 'Property' && !p.computed)) return;
         const named = new Map(options.properties.map(p => [p.key.name || p.key.value, p]));

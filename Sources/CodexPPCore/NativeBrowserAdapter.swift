@@ -2,9 +2,9 @@ import Foundation
 import JavaScriptCore
 
 public enum NativeBrowserAdapter {
-    public static func patch(archive: AsarArchive) throws -> (String, Data) {
+    public static func patch(archive: AsarArchive, reviewedPath: String? = nil) throws -> (String, Data) {
         try PatchAdapter.approveArchive(archive)
-        let paths = try archive.packedFiles(in: ".vite/build").filter {
+        let paths = try reviewedPath.map { [$0] } ?? archive.packedFiles(in: ".vite/build").filter {
             let name = URL(fileURLWithPath: $0).lastPathComponent
             return name == "main.js" || (name.hasPrefix("main-") && name.hasSuffix(".js"))
         }

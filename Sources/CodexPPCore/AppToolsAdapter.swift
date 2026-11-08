@@ -4,7 +4,7 @@ import Foundation
 /// inspected client generations remain OpenAI-signed after the root app is
 /// locally re-signed.
 public enum AppToolsAdapter {
-    private static let contract = #"return\{\.\.\.[^{}]{0,128}command:process\.platform===`win32`\?[^{}]{0,256},cwd:[^{}]{0,128},enabled:!1,env:[A-Za-z_$][A-Za-z0-9_$]*\}"#
+    private static let contract = #"return\{\.\.\.[^{}]{0,128}command:(?:process\.platform===`win32`|"win32"===process\.platform)\?[^{}]{0,256},cwd:[^{}]{0,128},enabled:!1,env:[A-Za-z_$][A-Za-z0-9_$]*\}"#
 
     public static func patch(_ source: String) throws -> String {
         guard !source.contains("__codexPPWrapAppToolsConfig") else {
