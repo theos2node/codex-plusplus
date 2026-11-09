@@ -71,6 +71,7 @@ globalThis.CodexPPRspackAdapter = Object.freeze({
 
     if (kind === 'settings') {
       const visibility = factory('visibility', 'HEBX');
+      const iconGetter = factory('visibility', 'hPIf');
       const sidebar = factory('settingsLayout', 'F4PH');
       const app = factory('app', 'bREQ');
       const general = factory('general', 'pqJp');
@@ -80,6 +81,8 @@ globalThis.CodexPPRspackAdapter = Object.freeze({
         'visibleSettingsSections:[...ni,ppExtensionsSection],activeSettingsSection:nu');
       replace('visibility', visibility, 'settingsNavigationSections:nm,',
         'settingsNavigationSections:[...nm,ppExtensionsSection],');
+      replace('visibility', iconGetter, 'return"cloud-environments"===e?',
+        `if(e===${slug})return{component:function(props){return(0,es.jsxs)("svg",{viewBox:"0 0 16 16",width:20,height:20,fill:"currentColor","aria-hidden":true,...props,children:[[1,9,6],[9,9,6],[1,1,6],[10,2,4]].map(([x,y,size],key)=>(0,es.jsx)("rect",{x,y,width:size,height:size,rx:1.5},key))});}};return"cloud-environments"===e?`);
       const groups = only(collect(sidebar.body, node => node.type === 'ArrayExpression' &&
         ['personal', 'coding'].every(group => node.elements.some(element => key(properties(element).get('key')) === group))),
       'Settings sidebar groups');
@@ -108,7 +111,11 @@ globalThis.CodexPPRspackAdapter = Object.freeze({
       // Use the same lazy dependencies as the app's General Settings route.
       const view = `\nconst ppExtensionsPage=u.lazy(()=>Promise.all([107421,280944,906413,515055,553834,474230].map(id=>n.e(id))).then(()=>({default:n("pqJp").codexPPExtensionsPage})));
 `;
-      insert('app', app.body.end - 1, view);
+      const routerStatement = only(app.body.body.filter(st => {
+        const code = source('app').original.slice(st.start, st.end);
+        return code.includes('path:"/settings",element:(0,i.jsx)(ng,{})');
+      }), 'Settings router declaration');
+      insert('app', routerStatement.start, view);
       replace('app', app, 'path:"/settings",element:(0,i.jsx)(ng,{}),children:[',
         `path:"/settings",element:(0,i.jsx)(ng,{}),children:[(0,i.jsx)(A.qh,{path:${slug},element:(0,i.jsx)(ppExtensionsPage,{})}),`);
       replace('app', app, 'shouldRenderRouteContent:p}=s;if(h)',
@@ -149,7 +156,7 @@ globalThis.CodexPPRspackAdapter = Object.freeze({
       wrapReturn('suggested', suggested, original => `globalThis.__codexPPBookmarks.section(ppBookmarksReact,i.jsx,o,(${original}),eM)`);
       replace('suggested', suggested, 'if(null==c||0===c.length)return null;',
         'if(null==c||0===c.length)return globalThis.__codexPPBookmarks.section(ppBookmarksReact,i.jsx,o,null,eM);');
-      insert('suggested', suggestedFactory.body.end - 1, '\nconst ppBookmarksReact=n("zd8w");\n');
+      insert('suggested', suggestedFactory.body.start + 1, '\nconst ppBookmarksReact=n("zd8w");\n');
       for (const name of ['menu', 'tab', 'detached', 'suggested', 'entry']) source(name).prefix = runtime;
     } else {
       throw Error(`Unknown Rspack adapter: ${kind}`);
